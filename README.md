@@ -1,1 +1,1 @@
-# pygdpc
+# pygdpc: a PyTorch implementation of gdpc
