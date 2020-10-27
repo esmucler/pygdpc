@@ -76,11 +76,13 @@ class GDPC(nn.Module):
         torch.autograd.set_detect_anomaly(True)
         total_loss = 0
         split = int(np.floor(self.num_periods/batch_size))
-        for num_batch in range(split):
+        batches = [list(range(num_batch * batch_size, (num_batch + 1) * batch_size)) for num_batch in range(split)]
+        if split * batch_size < self.num_periods:
+            batches.append(list(range(split * batch_size, self.num_periods)))
+        for batch in batches:
             opt.zero_grad()
-            batch_periods = [i for i in range(num_batch * batch_size, num_batch * batch_size + 1)]
-            fitted = self.forward(periods=batch_periods)
-            loss = self.reconstruction_error(fitted, data[batch_periods, :])
+            fitted = self.forward(periods=batch)
+            loss = self.reconstruction_error(fitted, data[batch, :])
             loss.backward()
             opt.step()
             total_loss += loss.item()
