@@ -1,7 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-import torch.optim as optim
 import numpy as np
 
 
@@ -43,7 +41,7 @@ class GDPC(nn.Module):
         self.component = torch.randn(self.num_periods + self.k, requires_grad=True)
         self.beta = torch.randn(self.num_series, self.k + 1, requires_grad=True)
         self.alpha = torch.randn(self.num_series, requires_grad=True)
-        opt = optim.Adam([self.component, self.alpha, self.beta], lr=self.lr)
+        opt = torch.optim.Adam([self.component, self.alpha, self.beta], lr=self.lr)
         self.train()
 
         loss_new = self._train_epoch(data=data, opt=opt, batch_size=self.batch_size)
@@ -60,17 +58,22 @@ class GDPC(nn.Module):
         self.beta = self.beta.detach().numpy()
         self.alpha = self.alpha.detach().numpy()
         self.component = self.component.detach().numpy()
+
+        if self.rescale:
+            self._rescale()
+
         self.mse = self.reconstruction_error(self.forward(range(self.num_periods)), data).item()
+
         if crit <= self.tol:
             self.conv = True
 
-    # def _rescale(self):
-    #     comp_mean = torch.mean(self.component)
-    #     comp_std = torch.std(self.component)
-    #     self.component = (self.component - comp_mean) / comp_std
-    #     for h in range(self.k + 1):
-    #         self.alpha = self.alpha + (comp_mean / comp_std) * self.beta[:, h]
-    #     self.beta = self.beta * comp_std
+    def _rescale(self):
+        comp_mean = np.mean(self.component)
+        comp_std = np.std(self.component)
+        self.component = (self.component - comp_mean) / comp_std
+        self.beta = self.beta * comp_std
+        for h in range(self.k + 1):
+            self.alpha = self.alpha + (comp_mean / comp_std) * self.beta[:, h]
 
     def _train_epoch(self, data, opt, batch_size):
         torch.autograd.set_detect_anomaly(True)
