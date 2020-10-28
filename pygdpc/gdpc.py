@@ -23,7 +23,7 @@ class GDPC(nn.Module):
         self.rescale = rescale
 
     def forward(self, periods):
-        fits = torch.zeros(len(periods), self.num_series, requires_grad=False)
+        fits = torch.zeros(len(periods), self.num_series)
         for t in range(len(periods)):
             for h in range(self.k + 1):
                 fits[t, :] += self.component[periods[t] + h] * self.beta[:, h]
@@ -32,7 +32,7 @@ class GDPC(nn.Module):
 
     @staticmethod
     def reconstruction_error(fitted, data):
-        output = nn.MSELoss()
+        output = nn.MSELoss(reduction='sum')
         rec = output(fitted, data)
         return rec
 
@@ -59,10 +59,11 @@ class GDPC(nn.Module):
         self.alpha = self.alpha.detach().numpy()
         self.component = self.component.detach().numpy()
 
+        self.mse = self.reconstruction_error(self.forward(list(range(self.num_periods))), data).item()
+        self.mse = self.mse / (self.num_periods * self.num_series)
+
         if self.rescale:
             self._rescale()
-
-        self.mse = self.reconstruction_error(self.forward(range(self.num_periods)), data).item()
 
         if crit <= self.tol:
             self.conv = True
